@@ -1,0 +1,3 @@
+Declare Function DLGSelectCountries() As Integer
+
+Declare Function DLGSCGetSelectedCountryNames() As String

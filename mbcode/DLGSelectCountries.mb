@@ -1,0 +1,357 @@
+'*******************************************************************************
+'** 	Created By Peter Horsbøll Møller, Pitney Bowes
+'** 	Program:
+'** 	Modul:
+'**
+'*******************************************************************************
+
+'-------------------------------------
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+'**default constants...
+Include "Library\Defaults.def"
+
+'-------------------------------------
+Include "Library\ARRAYLib.def"
+Include "Library\DEBUGLib.def"
+Include "Library\ERRORLib.def"
+Include "Library\TABLELib.def"
+
+Include "DLGSelectCountries.def"
+
+Define	CTRL_LST_CONTINENTS			100
+Define	CTRL_LST_COUNTRIES			200
+Define	CTRL_LST_COUNTRIES_SELECTED	300
+
+Declare Sub DLGSCHndlr_DialogLoad
+Declare Sub DLGSCHndlr_ContinentsClicked
+Declare Sub DLGSCHndlr_RefreshCountryList
+Declare Sub DLGSCHndlr_CountriesClicked
+Declare Sub DLGSCHndlr_SelCountriesClicked
+Declare Sub DLGSCHndlr_OKClicked
+
+Dim	marrContinents(), marrCountries(), marrCountriesSelected() As String,
+	mnContinentIndx As Integer
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'	:
+'Return value:
+'
+'**********************************************************************************************''
+Function DLGSelectCountries() As Integer
+
+OnError GoTo ErrorOccured
+
+DLGSelectCountries = 0
+
+	Dialog
+		Title "Select Countries"
+		Calling DLGSCHndlr_DialogLoad
+
+		Control StaticText	Position 5,5
+			Title "Continents"
+		Control PopupMenu	Position 5,15		Width 415
+			ID CTRL_LST_CONTINENTS
+			Calling DLGSCHndlr_ContinentsClicked
+
+		Control StaticText	Position 5,40
+			Title "Countries"
+
+		Control ListBox	Position 5,50		Width 200	Height 150
+			ID	CTRL_LST_COUNTRIES
+			Calling DLGSCHndlr_CountriesClicked
+
+		Control ListBox	Position 215,50	Width 200	Height 150
+			ID	CTRL_LST_COUNTRIES_SELECTED
+			Calling DLGSCHndlr_SelCountriesClicked
+
+		Control OKButton
+		Control CancelButton
+
+	Call TABCLose("__CONTINENTS")
+	Call TABCLose("__COUNTRIES")
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	DLGSelectCountries = Ubound(marrCountriesSelected)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "DLGSelectCountries")
+	Call ERRShow()
+
+End Function
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes
+'Parameters:
+'
+'**********************************************************************************************''
+Sub DLGSCHndlr_DialogLoad
+
+OnError GoTo ErrorOccured
+
+	If Ubound(marrContinents) = 0 Then
+		Call ARRAYAddValueString(marrContinents, "<All>")
+		Call ARRAYAddValueString(marrContinents, "<Unspecified>")
+
+		Select CONTINENT
+			From WORLD
+			Where CONTINENT <> ""
+			Group By CONTINENT
+			Order By CONTINENT
+			Into __CONTINENTS NoSelect Hide
+
+		Fetch First From __CONTINENTS
+		Do Until EOT(__CONTINENTS)
+			Call ARRAYAddValueString(marrContinents, __CONTINENTS.CONTINENT)
+
+			Fetch Next From __CONTINENTS
+		Loop
+		Close Table __CONTINENTS
+
+		Alter Control CTRL_LST_CONTINENTS Title From Variable marrContinents
+		Alter Control CTRL_LST_CONTINENTS Value 3
+	Else
+		Alter Control CTRL_LST_CONTINENTS Title From Variable marrContinents
+		Alter Control CTRL_LST_CONTINENTS Value mnContinentIndx
+	End If
+
+	Call DLGSCHndlr_ContinentsClicked
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "DLGSCHndlr_DialogLoad")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes
+'Parameters:
+'
+'**********************************************************************************************''
+Sub DLGSCHndlr_ContinentsClicked
+
+Dim	sContinent As String
+
+OnError GoTo ErrorOccured
+
+	mnContinentIndx = ReadControlValue(CTRL_LST_CONTINENTS)
+	If mnContinentIndx = 0 Then
+		mnContinentIndx = 1
+	End If
+
+	Do Case mnContinentIndx
+		Case 1
+			Select COUNTRY
+				From WORLD
+				Group By COUNTRY
+				Order BY COUNTRY
+				Into __Countries NoSelect Hide
+		Case 2
+			Select COUNTRY
+				From WORLD
+				Where CONTINENT = ""
+				Group By COUNTRY
+				Order BY COUNTRY
+				Into __Countries NoSelect Hide
+		Case Else
+			sContinent = marrContinents(mnContinentIndx)
+			Select COUNTRY
+				From WORLD
+				Where CONTINENT = sContinent
+				Group By COUNTRY
+				Order BY COUNTRY
+				Into __COUNTRIES NoSelect Hide
+	End Case
+
+	Call DLGSCHndlr_RefreshCountryList
+
+	If Ubound(marrCountries) > 0 Then
+		Alter Control CTRL_LST_COUNTRIES Value 1
+	End if
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "DLGSCHndlr_ContinentsClicked")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes
+'Parameters:
+'
+'**********************************************************************************************''
+Sub DLGSCHndlr_RefreshCountryList
+
+Dim	sCountry As String
+
+OnError GoTo ErrorOccured
+
+	Redim marrCountries(0)
+	Fetch First From __COUNTRIES
+	Do Until EOT(__COUNTRIES)
+		sCountry = __COUNTRIES.COUNTRY
+		If not ARRAYContainsValueString(marrCountriesSelected, sCountry) Then
+			Call ARRAYAddValueString(marrCountries, sCountry)
+		End If
+
+		Fetch Next From __COUNTRIES
+	Loop
+
+	Alter Control CTRL_LST_COUNTRIES Title From Variable marrCountries
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "DLGSCHndlr_RefreshCountryList")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes
+'Parameters:
+'
+'**********************************************************************************************''
+Sub DLGSCHndlr_CountriesClicked
+
+Dim	nCountryIndx As Integer
+
+OnError GoTo ErrorOccured
+
+	nCountryIndx = ReadControlValue(CTRL_LST_COUNTRIES)
+	If nCountryIndx = 0 Then
+		Exit Sub
+	End If
+
+	If CommandInfo(CMD_INFO_DLG_DBL) Then
+		Call ARRAYAddValueString(marrCountriesSelected, marrCountries(nCountryIndx))
+		Call ARRAYRemoveItemString(marrCountries, nCountryIndx)
+
+		If nCountryIndx > Ubound(marrCountries) Then
+			nCountryIndx = Ubound(marrCountries)
+		End If
+	End If
+
+	Alter Control CTRL_LST_COUNTRIES Title From Variable marrCountries
+	If nCountryIndx > 0 Then
+		Alter Control CTRL_LST_COUNTRIES Value nCountryIndx
+	End If
+
+	Alter Control CTRL_LST_COUNTRIES_SELECTED Title From Variable marrCountriesSelected
+	Alter Control CTRL_LST_COUNTRIES_SELECTED Value Ubound(marrCountriesSelected)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "DLGSCHndlr_CountriesClicked")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes
+'Parameters:
+'
+'**********************************************************************************************''
+Sub DLGSCHndlr_SelCountriesClicked
+
+Dim	nCountryIndx As Integer,
+	sCountry As String
+
+OnError GoTo ErrorOccured
+
+	nCountryIndx = ReadControlValue(CTRL_LST_COUNTRIES_SELECTED)
+	If nCountryIndx = 0 Then
+		Exit Sub
+	End If
+
+	If CommandInfo(CMD_INFO_DLG_DBL) Then
+		sCountry	= marrCountriesSelected(nCountryIndx)
+		Call ARRAYRemoveItemString(marrCountriesSelected, nCountryIndx)
+
+		If nCountryIndx > Ubound(marrCountriesSelected) Then
+			nCountryIndx = Ubound(marrCountriesSelected)
+		End If
+	End If
+
+	Alter Control CTRL_LST_COUNTRIES_SELECTED Title From Variable marrCountriesSelected
+	If nCountryIndx > 0 Then
+		Alter Control CTRL_LST_COUNTRIES_SELECTED Value nCountryIndx
+	End If
+
+	Call DLGSCHndlr_RefreshCountryList
+	nCountryIndx	= ARRAYFindValueString(marrCountries, sCountry)
+	If nCountryIndx > 0 Then
+		Alter Control CTRL_LST_COUNTRIES Value nCountryIndx
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "DLGSCHndlr_CountriesClicked")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes
+'Parameters:
+'
+'**********************************************************************************************''
+Sub DLGSCHndlr_OKClicked
+
+OnError GoTo ErrorOccured
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "DLGSCHndlr_OKClicked")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes Business Insight
+'Parameters:
+'	:
+'Return value:
+'
+'**********************************************************************************************''
+Function DLGSCGetSelectedCountryNames() As String
+
+Dim	sCountries As String,
+	i As Integer
+
+OnError GoTo ErrorOccured
+
+DLGSCGetSelectedCountryNames = ""
+
+	For i = 1 To Ubound(marrCountriesSelected)
+		If i = 1 Then
+			sCountries = Chr$(34) & marrCountriesSelected(i) & Chr$(34)
+		Else
+			sCountries = sCountries & "," & Chr$(34) & marrCountriesSelected(i) & Chr$(34)
+		End If
+	Next
+
+DLGSCGetSelectedCountryNames = sCountries
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "DLGSCGetSelectedCountryNames")
+	Call ERRShow()
+
+End Function

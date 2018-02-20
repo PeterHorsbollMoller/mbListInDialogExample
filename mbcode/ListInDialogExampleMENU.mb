@@ -1,0 +1,135 @@
+'*******************************************************************************
+'**   Created by Peter Horsbøll Møller, Pitney Bowes
+'** 	Program:
+'** 	Modul:
+'**
+'*******************************************************************************
+
+'-------------------------------------
+Include "Enums.def"
+Include "Icons.def"
+Include "MapBasic.def"
+Include "Menu.def"
+'**default constants...
+Include "Library\Defaults.def"
+
+Include "DLGSelectCountries.def"
+
+
+Define xProgram 		"List In Dialog Sample"
+Define xProgramMenu		"ListInDialogSample"
+Define xVersion 		"0.1"
+Define xYear			"2018"
+Define xAddToMenuBar	FALSE
+
+Define FILE_INI			GetFolderPath$(FOLDER_MI_PREFERENCE) & xProgram & ".ini"
+Define FILE_DBG			ApplicationDirectory$() & xProgram & ".dbg"
+'Define FILE_DLL			ApplicationDirectory$() & xProgram & ".dll"
+Define FILE_PAD			GetFolderPath$(FOLDER_MI_PREFERENCE) & xProgram & ".btp"
+
+'-------------------------------------
+Include "Library\DEBUGLib.def"
+Include "Library\ERRORLib.def"
+Include "Library\ProgramInfo.def"
+Include "Library\RIBBONLib.def"
+Include "Library\TABLELib.def"
+
+'-----------------------------------------------------------------------------------------
+Declare Sub Main
+Declare Sub EndProgram
+Declare Sub EndHandler
+
+Declare Sub ShowSelectCountries
+
+'**********************************************************************************************''
+'**   Created by Peter Horsbøll Møller, Pitney Bowes
+'
+'**********************************************************************************************''
+Sub Main
+
+OnError GoTo ErrorOccured
+
+	'***Initializing ApplicationInfo
+	Call PRGISetApplicationName(xProgram)
+	Call PRGISetApplicationVersion(xVersion)
+	Call PRGISetApplicationCopyrightYear(xYear)
+	Call PRGISetApplicationDevelopedBy("Peter Horsbøll Møller")
+
+	'***Enabling Debug if file exists
+	Call DEBUGEnableByFile(FILE_DBG)
+
+	If not TABIsOpen("WORLD") Then
+		Open Table ApplicationDirectory$() & "World.tab"
+		Map From World
+	End If
+
+	Call ShowSelectCountries
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "Main")
+	Call ERRShow()
+
+End Sub
+
+'****************************************
+'**   Created by Peter Horsbøll Møller, Pitney Bowes
+'**   Ending MapBasic application
+'****************************************
+Sub EndProgram
+
+OnError GoTo ErrorOccured
+
+	End Program
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "EndProgram")
+	Call ERRShow()
+
+End Sub
+
+'****************************************
+'**   Created by Peter Horsbøll Møller, Pitney Bowes
+'**   Ending MapBasic application
+'****************************************
+Sub EndHandler
+
+OnError GoTo ErrorOccured
+
+'	Call RBNEndHandler
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "EndProgram")
+	Call ERRShow()
+
+End Sub
+
+'**********************************************************************************************''
+'Created by Peter Horsbøll Møller, Pitney Bowes
+'Parameters:
+'
+'**********************************************************************************************''
+Sub ShowSelectCountries
+
+Dim	nSelected As Integer,
+	sCmd As String
+
+OnError GoTo ErrorOccured
+
+	nSelected = DLGSelectCountries()
+	If nSelected > 0 Then
+		sCmd = "Select * From WORLD Where COUNTRY In (" & DLGSCGetSelectedCountryNames() & ")"
+		Print sCmd
+		Run Command sCmd
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreate(Err(), Error$(), "ShowSelectCountries")
+	Call ERRShow()
+
+End Sub
